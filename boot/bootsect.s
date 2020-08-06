@@ -1,5 +1,7 @@
  .model tiny
  .386p
+
+;汇编代码;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;// SYSSIZE是要加载的节数（16字节为1节）。3000h共为30000h字节＝192kB
 ;// 对当前的版本空间已足够了。
  SYSSIZE = 3000h		;// 指编译连接后system模块的大小。
@@ -53,11 +55,12 @@ start:					;// 以下10行作用是将自身(bootsect)从目前段位置07c0h(31
 	mov	cx,256			;// 移动计数值 ＝ 256字 = 512 字节
 	sub	si,si			;// 源地址   ds:si = 07C0h:0000h
 	sub	di,di			;// 目的地址 es:di = 9000h:0000h
-	rep movsw			;// 重复执行，直到cx = 0;移动1个字
+	rep movsw			;// 重复执行，直到cx = 0;每次移动1个字
 ;	jmp INITSEG:[go] 	;// 间接跳转。这里INITSEG指出跳转到的段地址。
     db 0eah				;// 间接跳转指令码
 	dw go
 	dw INITSEG
+
 go:	mov	ax,cs			;// 将ds、es和ss都置成移动后代码所在的段处（9000h）。
 	mov	ds,ax			;// 由于程序中有堆栈操作（push，pop，call），因此必须设置堆栈。
 	mov	es,ax
@@ -68,6 +71,29 @@ go:	mov	ax,cs			;// 将ds、es和ss都置成移动后代码所在的段处（900
 						;   都可以。因为从90200h地址开始处还要放置setup程序，
 						;   而此时setup程序大约为4个扇区，因此sp要指向大
 						;   于（200h + 200h*4 + 堆栈大小）处。 */
+
+;Python 代码;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+sys_size  = 3000h		              ;// 指编译连接后system模块的大小。
+setup_len = 4			                ;// setup程序的扇区数（setup－sectors）值
+boot_seg  = "07c0h"  		              ;// bootsect的原始地址（是段地址，以下同）
+init_seg  = "9000h"		              ;// 将bootsect移到这里
+setup_seg = "9020h"		              ;// setup程序从这里开始
+sys_seg   = "1000h"		              ;// system模块加载到10000(64kb)处.
+end_seg   = "9120h"                 ;// 停止加载的段地址sys_seg + sys_size
+
+;;; generage a memory like directory
+memory = []
+for i in range(100000):
+  memory[i] = 0
+;; python 用字典来代替内存， 所以0x7c00 和 0x9000 直接作为字典的一个 key；
+;; bootsect 的代码存储在 0x7c00 处，start 的代码就是将0x7c00 移动到 0x9000
+def start():
+  ds[boot_seg] = []
+  es[init_seg] = []
+  cx = 256                        ; w 是 word = 16 bit = 2 x 8bit = 2 byte
+  si = di = 0
+  for i in range(0,cx):           ; 这里的 0 其实就是 di/si
+    ds[boot_seg][i] = es[init_seg][i]
 
 ;// 在bootsect程序块后紧跟着加载setup模块的代码数据。
 ;// 注意es已经设置好了。（在移动代码时es已经指向目的段地址处9000h）。
